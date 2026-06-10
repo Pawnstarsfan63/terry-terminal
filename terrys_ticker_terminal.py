@@ -1,0 +1,462 @@
+"""
+TERRY'S TICKER TERMINAL — free backend  (Reddit + Stocktwits + Yahoo/yfinance)
+===================================================================
+Routes consumed by terrys-ticker-terminal.html:
+    GET /api/trending?subs=wallstreetbets,stocks,...
+    GET /api/quotes?symbols=AAPL,TSLA,...
+    GET /api/news?symbol=AAPL
+
+All sources are FREE:
+  - Reddit API : free "script" app (2 min setup)
+  - Stocktwits : public stream API, no key (~200 req/hr unauth)
+  - Yahoo      : yfinance — price, 50/200-day MA, ranges, market cap, NEWS
+  - RSI(14)    : computed from a batched yfinance history download
+  - Sentiment  : VADER (offline) for Reddit text & news headlines
+
+SETUP
+-----
+1) pip install -r requirements.txt
+2) Reddit app: https://www.reddit.com/prefs/apps -> "create another app" -> type "script"
+   redirect uri http://localhost:8080 ; copy client id (under name) + secret.
+3) Set env vars below, then: python ticker_pulse_server.py
+4) In ticker-pulse.html set CONFIG.USE_MOCK = false  (API_BASE already = http://localhost:8000)
+"""
+
+import os, re, time, threading
+from datetime import datetime, timezone
+
+import numpy as np
+import requests
+import praw
+import yfinance as yf
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+REDDIT_CLIENT_ID     = os.getenv("REDDIT_CLIENT_ID",     "PUT_CLIENT_ID_HERE")
+REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET", "PUT_SECRET_HERE")
+REDDIT_USER_AGENT    = os.getenv("REDDIT_USER_AGENT",    "terrys-ticker-terminal/1.0 by u/yourname")
+STOCKTWITS_TOKEN     = os.getenv("STOCKTWITS_TOKEN", "")
+FMP_API_KEY          = os.getenv("FMP_API_KEY", "")   # optional: congressional + insider disclosures (financialmodelingprep.com, free tier)
+
+POSTS_PER_SUB = 60
+CACHE_TTL     = 300
+NEWS_TTL      = 600
+HISTORY_LEN   = 14
+ST_LIMIT      = 20
+
+app = Flask(__name__)
+CORS(app)
+vader = SentimentIntensityAnalyzer()
+reddit = praw.Reddit(client_id=REDDIT_CLIENT_ID, client_secret=REDDIT_CLIENT_SECRET,
+                     user_agent=REDDIT_USER_AGENT, check_for_async=False)
+
+# ---------------- ticker extraction ----------------
+CASHTAG = re.compile(r"\$([A-Za-z]{1,5})\b")
+BARE    = re.compile(r"\b([A-Z]{2,5})\b")
+BLACKLIST = {"A","I","DD","CEO","CFO","IPO","ETF","USA","USD","EU","UK","FED","SEC","ATH",
+    "YOLO","FOMO","IMO","IMHO","TLDR","EOD","AH","PM","EPS","PE","PT","WSB","OP","RH","ER",
+    "FD","FUD","HODL","LOL","LMAO","WTF","OMG","TA","RSI","MACD","AI","API","GPU","CPU","EV",
+    "ALL","FOR","ARE","THE","AND","NOT","YOU","BUT","CAN","GET","NEW","NOW","ONE","OUT","SEE",
+    "TWO","WHY","BIG","BUY","RED","ITM","OTM","MA"}
+def extract_symbols(text):
+    if not text: return set()
+    syms = {m.upper() for m in CASHTAG.findall(text)}
+    for m in BARE.findall(text):
+        if m not in BLACKLIST and m not in syms: syms.add(m)
+    return syms
+
+_lock = threading.Lock()
+_cache, _news_cache, _history, _prev_mentions = {}, {}, {}, {}
+
+def is_market_open():
+    now = datetime.now(timezone.utc)
+    if now.weekday() >= 5: return False
+    h = now.hour + now.minute/60
+    return 13.5 <= h <= 21.0
+
+def _fi(fi, *keys):
+    for k in keys:
+        v = None
+        try: v = fi[k] if k in fi else None
+        except Exception: v = None
+        if v is None:
+            try: v = getattr(fi, k)
+            except Exception: v = None
+        if v is not None: return v
+    return None
+
+# ---------------- Yahoo quote (+ 50/200 MA, ranges, cap) ----------------
+def price_for(symbols):
+    out = {}
+    if not symbols: return out
+    try:
+        tk = yf.Tickers(" ".join(symbols))
+        for s in symbols:
+            try:
+                t = tk.tickers.get(s) or yf.Ticker(s)
+                fi = t.fast_info
+                last = _fi(fi,"lastPrice","last_price")
+                prev = _fi(fi,"previousClose","previous_close")
+                if last is None:
+                    h = t.history(period="2d")
+                    if not h.empty:
+                        last = float(h["Close"].iloc[-1]); prev = float(h["Close"].iloc[0])
+                if last is None: continue
+                chg = ((last-prev)/prev*100) if prev else 0.0
+                name = s
+                try: name = (t.info.get("shortName") or s)[:32]
+                except Exception: pass
+                out[s] = {
+                    "name": name, "price": round(float(last),2), "change_pct": round(float(chg),2),
+                    "volume": int(_fi(fi,"lastVolume","last_volume") or 0),
+                    "avg_volume": int(_fi(fi,"threeMonthAverageVolume","tenDayAverageVolume","three_month_average_volume") or 0),
+                    "market_cap": int(_fi(fi,"marketCap","market_cap") or 0) or None,
+                    "day_low": round(float(_fi(fi,"dayLow","day_low") or last),2),
+                    "day_high": round(float(_fi(fi,"dayHigh","day_high") or last),2),
+                    "w52_low": round(float(_fi(fi,"yearLow","year_low") or last),2),
+                    "w52_high": round(float(_fi(fi,"yearHigh","year_high") or last),2),
+                    "ma50": round(float(_fi(fi,"fiftyDayAverage","fifty_day_average") or last),2),
+                    "ma200": round(float(_fi(fi,"twoHundredDayAverage","two_hundred_day_average") or last),2),
+                }
+            except Exception:
+                continue
+    except Exception as e:
+        print("price error:", e)
+    return out
+
+# ---------------- RSI(14) from a batched history download ----------------
+def compute_rsi(closes, period=14):
+    closes = np.asarray(closes, dtype=float)
+    closes = closes[~np.isnan(closes)]
+    if len(closes) <= period: return None
+    deltas = np.diff(closes)
+    up = deltas[:period].clip(min=0).mean()
+    down = -deltas[:period].clip(max=0).mean()
+    def rsi_val(up, down):
+        if down == 0: return 100.0 if up > 0 else 50.0
+        return 100 - 100/(1 + up/down)
+    rsi = rsi_val(up, down)
+    for d in deltas[period:]:
+        up = (up*(period-1) + max(d,0))/period
+        down = (down*(period-1) + max(-d,0))/period
+        rsi = rsi_val(up, down)
+    return round(float(rsi),1)
+
+def rsi_for(symbols):
+    out = {}
+    if not symbols: return out
+    try:
+        data = yf.download(symbols, period="3mo", interval="1d",
+                           progress=False, group_by="ticker", threads=True)
+        for s in symbols:
+            try:
+                closes = (data[s]["Close"] if len(symbols) > 1 else data["Close"]).dropna().values
+                out[s] = compute_rsi(closes)
+            except Exception:
+                out[s] = None
+    except Exception as e:
+        print("rsi error:", e)
+    return out
+
+# ---------------- Stocktwits ----------------
+def stocktwits_for(symbols):
+    out = {}
+    headers = {"User-Agent": "terrys-ticker-terminal/1.0"}
+    params = {"access_token": STOCKTWITS_TOKEN} if STOCKTWITS_TOKEN else {}
+    for s in symbols:
+        try:
+            r = requests.get(f"https://api.stocktwits.com/api/2/streams/symbol/{s}.json",
+                             headers=headers, params=params, timeout=6)
+            if r.status_code == 429:
+                print("stocktwits throttled; stopping ST fetch this cycle"); break
+            if r.status_code != 200: continue
+            msgs = r.json().get("messages", [])
+            bull = bear = 0
+            for m in msgs:
+                basic = ((m.get("entities") or {}).get("sentiment") or {}).get("basic")
+                if basic == "Bullish": bull += 1
+                elif basic == "Bearish": bear += 1
+            tagged = bull + bear
+            out[s] = {"st_messages": len(msgs), "st_bull": bull, "st_bear": bear,
+                      "st_sentiment": round((bull-bear)/tagged, 2) if tagged else 0.0}
+            time.sleep(0.15)
+        except Exception:
+            continue
+    return out
+
+# ---------------- News (Yahoo) + headline sentiment ----------------
+def news_for(symbol):
+    now = time.time()
+    with _lock:
+        if symbol in _news_cache and now - _news_cache[symbol][0] < NEWS_TTL:
+            return _news_cache[symbol][1]
+    articles = []
+    try:
+        raw = yf.Ticker(symbol).news or []
+        for n in raw[:6]:
+            c = n.get("content") or n   # newer yfinance nests under "content"
+            title = c.get("title") or n.get("title")
+            if not title: continue
+            publisher = (c.get("provider") or {}).get("displayName") or n.get("publisher") or ""
+            url = ((c.get("canonicalUrl") or {}).get("url")
+                   or (c.get("clickThroughUrl") or {}).get("url")
+                   or n.get("link") or "")
+            published = c.get("pubDate") or n.get("providerPublishTime")
+            sentiment = round(vader.polarity_scores(title)["compound"], 2)
+            articles.append({"title": title, "publisher": publisher, "url": url,
+                             "published": published, "sentiment": sentiment})
+            if len(articles) >= 4: break
+    except Exception as e:
+        print("news error:", e)
+    payload = {"symbol": symbol, "articles": articles}
+    with _lock:
+        _news_cache[symbol] = (now, payload)
+    return payload
+
+# ---------------- arbitrary/added ticker (full data on demand) ----------------
+def reddit_counts_for(sym, subs):
+    """Search each subreddit for the symbol; count true mentions + avg sentiment."""
+    by_sub, scores, total = {}, [], 0
+    query = f"${sym} OR {sym}"
+    for sub in subs:
+        try:
+            for post in reddit.subreddit(sub).search(query, sort="new", time_filter="month", limit=30):
+                text = f"{post.title} {getattr(post,'selftext','') or ''}"
+                if sym in extract_symbols(text):
+                    by_sub[sub] = by_sub.get(sub, 0) + 1
+                    total += 1
+                    scores.append(vader.polarity_scores(text)["compound"])
+        except Exception as e:
+            print(f"search {sub} error:", e)
+    return total, by_sub, (round(sum(scores)/len(scores), 2) if scores else 0.0)
+
+def _pct(x):
+    return round(x*100, 2) if isinstance(x, (int, float)) else None
+
+def fundamentals_for(sym):
+    """Valuation / quality / analyst metrics from yfinance .info (best-effort, free)."""
+    f = {k: None for k in ("pe","fwd_pe","peg","ps","pb","eps","profit_margin","roe",
+                            "rev_growth","div_yield","beta","target_price","analysts",
+                            "recommendation","next_earnings","short_pct")}
+    try:
+        t = yf.Ticker(sym)
+        info = t.info or {}
+        f["pe"]            = info.get("trailingPE")
+        f["fwd_pe"]        = info.get("forwardPE")
+        f["peg"]           = info.get("trailingPegRatio") or info.get("pegRatio")
+        f["ps"]            = info.get("priceToSalesTrailing12Months")
+        f["pb"]            = info.get("priceToBook")
+        f["eps"]           = info.get("trailingEps")
+        f["profit_margin"] = _pct(info.get("profitMargins"))
+        f["roe"]           = _pct(info.get("returnOnEquity"))
+        f["rev_growth"]    = _pct(info.get("revenueGrowth"))
+        dy = info.get("dividendYield")
+        f["div_yield"]     = round(dy*100, 2) if isinstance(dy,(int,float)) and dy < 1 else (round(dy,2) if dy else None)
+        f["beta"]          = info.get("beta")
+        f["target_price"]  = info.get("targetMeanPrice")
+        f["analysts"]      = info.get("numberOfAnalystOpinions")
+        f["recommendation"]= info.get("recommendationKey")
+        f["short_pct"]     = _pct(info.get("shortPercentOfFloat"))
+        try:
+            cal = t.calendar
+            ed = None
+            if isinstance(cal, dict):
+                ed = cal.get("Earnings Date")
+                if isinstance(ed, list) and ed: ed = ed[0]
+            elif cal is not None and "Earnings Date" in getattr(cal, "index", []):
+                ed = cal.loc["Earnings Date"][0]
+            if ed is not None:
+                f["next_earnings"] = str(ed)[:10]
+        except Exception:
+            pass
+    except Exception as e:
+        print("fundamentals error:", e)
+    return f
+
+def options_flow_for(sym):
+    """Observable options footprint from yfinance chains (free, no key)."""
+    out = {"pc_ratio": None, "opt_volume": None, "iv": None, "flow_signal": 0}
+    try:
+        t = yf.Ticker(sym); exps = t.options or []
+        if not exps: return out
+        call_v = put_v = 0; ivs = []
+        for e in exps[:2]:                      # nearest two expiries keeps it light
+            ch = t.option_chain(e)
+            call_v += int(ch.calls["volume"].fillna(0).sum())
+            put_v  += int(ch.puts["volume"].fillna(0).sum())
+            ivs += [float(x) for x in ch.calls["impliedVolatility"].dropna().values]
+        pc = round(put_v/call_v, 2) if call_v else None
+        iv = round(float(np.median(ivs))*100, 1) if ivs else None
+        sig = 1 if (pc is not None and pc < 0.7) else (-1 if (pc is not None and pc > 1.3) else 0)
+        out = {"pc_ratio": pc, "opt_volume": int(call_v+put_v), "iv": iv, "flow_signal": sig}
+    except Exception as e:
+        print("options error:", e)
+    return out
+
+def disclosures_for(sym):
+    """Politician (STOCK Act) + insider (Form 4) recent trades via FMP, only if FMP_API_KEY set.
+    NOTE: FMP has shifted paths across v3/v4/stable — confirm the current endpoints in their docs
+    and adjust below if needed. Returns [] (panel shows 'no recent disclosures') without a key."""
+    if not FMP_API_KEY:
+        return []
+    rows = []
+    base = "https://financialmodelingprep.com/api"
+    endpoints = [
+        (f"{base}/v4/senate-trading?symbol={sym}&apikey={FMP_API_KEY}", "Senator"),
+        (f"{base}/v4/senate-disclosure?symbol={sym}&apikey={FMP_API_KEY}", "House Rep"),
+        (f"{base}/v4/insider-trading?symbol={sym}&page=0&apikey={FMP_API_KEY}", "Insider"),
+    ]
+    for url, kind in endpoints:
+        try:
+            r = requests.get(url, timeout=6)
+            if r.status_code != 200:
+                continue
+            for d in (r.json() or [])[:4]:
+                ttype = str(d.get("type") or d.get("transactionType") or "").upper()
+                buy = ("P" == ttype) or ("BUY" in ttype) or ("PURCHASE" in ttype)
+                who = d.get("representative") or d.get("reportingName") or d.get("office") or kind
+                amount = d.get("amount") or d.get("securitiesTransacted") or ""
+                date = str(d.get("transactionDate") or d.get("date") or d.get("dateRecieved") or "")[:10]
+                rows.append({"who": str(who), "role": kind, "type": "BUY" if buy else "SELL",
+                             "amount": str(amount), "date": date})
+        except Exception:
+            continue
+    rows.sort(key=lambda x: x.get("date") or "", reverse=True)
+    return rows[:5]
+
+def build_one(sym, subs):
+    """Full ticker object (identical shape to trending rows) for any symbol."""
+    key = f"ticker:{sym}:" + ",".join(sorted(subs)); now = time.time()
+    with _lock:
+        if key in _cache and now - _cache[key][0] < CACHE_TTL:
+            return _cache[key][1]
+    q = price_for([sym])
+    row = None
+    if sym in q:
+        mentions, by_sub, r_sent = reddit_counts_for(sym, subs)
+        stx = stocktwits_for([sym]).get(sym, {"st_messages":0,"st_bull":0,"st_bear":0,"st_sentiment":0.0})
+        rsi_v = rsi_for([sym]).get(sym)
+        with _lock:
+            hist = _history.setdefault(sym, []); hist.append(mentions); del hist[:-HISTORY_LEN]; hist = list(hist)
+            prevm = _prev_mentions.get(sym, mentions); _prev_mentions[sym] = mentions
+        rw, sw = mentions, stx["st_messages"]
+        composite = round((r_sent*rw + stx["st_sentiment"]*sw)/(rw+sw), 2) if (rw+sw) else r_sent
+        row = {"symbol": sym, "name": q[sym]["name"], "mentions": mentions, "mentions_prev": prevm,
+               "sentiment": r_sent, "by_sub": by_sub, "history": hist, "composite": composite, "rsi": rsi_v}
+        row.update(stx)
+        row.update({k: q[sym][k] for k in ("price","change_pct","volume","avg_volume",
+                    "market_cap","day_low","day_high","w52_low","w52_high","ma50","ma200")})
+        row.update(fundamentals_for(sym))
+        row.update(options_flow_for(sym))
+        row["disclosures"] = disclosures_for(sym)
+    with _lock:
+        _cache[key] = (now, row)
+    return row
+
+# ---------------- core ----------------
+def build_trending(subs):
+    agg = {}
+    for sub in subs:
+        try:
+            for post in reddit.subreddit(sub).hot(limit=POSTS_PER_SUB):
+                text = f"{post.title} {getattr(post,'selftext','') or ''}"
+                syms = extract_symbols(text)
+                if not syms: continue
+                comp = vader.polarity_scores(text)["compound"]
+                for s in syms:
+                    d = agg.setdefault(s, {"by_sub": {}, "scores": [], "mentions": 0})
+                    d["by_sub"][sub] = d["by_sub"].get(sub,0)+1
+                    d["mentions"] += 1
+                    d["scores"].append(comp)
+        except Exception as e:
+            print(f"subreddit {sub} error:", e)
+
+    candidates = sorted([s for s,d in agg.items() if d["mentions"] >= 2],
+                        key=lambda s: agg[s]["mentions"], reverse=True)[:40]
+    quotes = price_for(candidates)
+    real = [s for s in candidates if s in quotes]
+    st = stocktwits_for(real[:ST_LIMIT])
+    rsi = rsi_for(real)
+
+    tickers = []
+    with _lock:
+        for s in real:
+            d = agg[s]
+            hist = _history.setdefault(s, []); hist.append(d["mentions"]); del hist[:-HISTORY_LEN]
+            r_sent = round(sum(d["scores"])/len(d["scores"]),2) if d["scores"] else 0.0
+            stx = st.get(s, {"st_messages":0,"st_bull":0,"st_bear":0,"st_sentiment":0.0})
+            rw, sw = d["mentions"], stx["st_messages"]
+            composite = round((r_sent*rw + stx["st_sentiment"]*sw)/(rw+sw),2) if (rw+sw) else r_sent
+            row = {"symbol": s, "name": quotes[s]["name"], "mentions": d["mentions"],
+                   "mentions_prev": _prev_mentions.get(s, d["mentions"]), "sentiment": r_sent,
+                   "by_sub": d["by_sub"], "history": list(hist), "composite": composite, "rsi": rsi.get(s)}
+            row.update(stx)
+            row.update({k: quotes[s][k] for k in ("price","change_pct","volume","avg_volume",
+                        "market_cap","day_low","day_high","w52_low","w52_high","ma50","ma200")})
+            tickers.append(row)
+            _prev_mentions[s] = d["mentions"]
+
+    tickers.sort(key=lambda t: t["mentions"], reverse=True)
+    return {"updated": datetime.now(timezone.utc).isoformat(),
+            "market_open": is_market_open(), "tickers": tickers}
+
+# ---------------- routes ----------------
+@app.route("/api/trending")
+def trending():
+    subs = [s.strip() for s in request.args.get("subs","wallstreetbets,stocks").split(",") if s.strip()]
+    key = "trending:" + ",".join(sorted(subs)); now = time.time()
+    with _lock:
+        if key in _cache and now - _cache[key][0] < CACHE_TTL:
+            return jsonify(_cache[key][1])
+    payload = build_trending(subs)
+    with _lock: _cache[key] = (now, payload)
+    return jsonify(payload)
+
+@app.route("/api/quotes")
+def quotes():
+    syms = [s.strip().upper() for s in request.args.get("symbols","").split(",") if s.strip()]
+    q = price_for(syms); st = stocktwits_for(syms); rsi = rsi_for(syms)
+    for s in syms:
+        if s in q:
+            q[s].update(st.get(s, {"st_messages":0,"st_sentiment":0.0}))
+            q[s]["rsi"] = rsi.get(s)
+    return jsonify({"symbols": q})
+
+@app.route("/api/news")
+def news():
+    sym = request.args.get("symbol","").strip().upper()
+    if not sym: return jsonify({"symbol":"", "articles":[]})
+    return jsonify(news_for(sym))
+
+@app.route("/api/tickers")
+def tickers_route():
+    syms = [s.strip().upper() for s in request.args.get("symbols","").split(",") if s.strip()]
+    subs = [s.strip() for s in request.args.get("subs","wallstreetbets,stocks").split(",") if s.strip()]
+    rows = [build_one(s, subs) for s in syms]
+    return jsonify({"tickers": [r for r in rows if r]})
+
+HTML_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "terrys-ticker-terminal.html")
+
+@app.route("/")
+def home():
+    """Serve the dashboard itself, flipped to live same-origin mode, so the whole app
+    is reachable at ONE url. Opening the .html file directly still runs in mock mode."""
+    try:
+        with open(HTML_FILE, encoding="utf-8") as f:
+            html = f.read()
+        html = (html.replace("USE_MOCK: true", "USE_MOCK: false")
+                    .replace("API_BASE: 'http://localhost:8000'", "API_BASE: ''"))
+        return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+    except Exception:
+        return jsonify({"ok": True, "note": "dashboard html not found next to server; api still live"})
+
+@app.route("/health")
+def health():
+    return jsonify({"ok": True, "service": "terrys-ticker-terminal",
+                    "sources": ["reddit","stocktwits","yfinance","fmp(optional)"],
+                    "routes": ["/api/tickers","/api/news","/api/trending","/api/quotes"]})
+
+if __name__ == "__main__":
+    print("TERRY'S TICKER TERMINAL backend -> http://localhost:8000  (set CONFIG.USE_MOCK=false in the HTML)")
+    app.run(host="0.0.0.0", port=8000, debug=False)
