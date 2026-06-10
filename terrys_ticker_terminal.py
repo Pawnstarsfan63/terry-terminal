@@ -48,8 +48,18 @@ ST_LIMIT      = 20
 app = Flask(__name__)
 CORS(app)
 vader = SentimentIntensityAnalyzer()
-reddit = praw.Reddit(client_id=REDDIT_CLIENT_ID, client_secret=REDDIT_CLIENT_SECRET,
-                     user_agent=REDDIT_USER_AGENT, check_for_async=False)
+REDDIT_ENABLED = all(v and not v.startswith("PUT_") for v in (REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET))
+reddit = None
+if REDDIT_ENABLED:
+    try:
+        reddit = praw.Reddit(client_id=REDDIT_CLIENT_ID, client_secret=REDDIT_CLIENT_SECRET,
+                             user_agent=REDDIT_USER_AGENT, check_for_async=False)
+    except Exception as e:
+        print("reddit init failed; running without Reddit:", e)
+        reddit, REDDIT_ENABLED = None, False
+else:
+    print("No Reddit credentials set — running without the Reddit mentions source. "
+          "Sentiment will be driven by Stocktwits. Add REDDIT_CLIENT_ID/SECRET later to enable it.")
 
 # ---------------- ticker extraction ----------------
 CASHTAG = re.compile(r"\$([A-Za-z]{1,5})\b")
@@ -162,7 +172,14 @@ def rsi_for(symbols):
 # ---------------- Stocktwits ----------------
 def stocktwits_for(symbols):
     out = {}
-    headers = {"User-Agent": "terrys-ticker-terminal/1.0"}
+    headers = {
+        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://stocktwits.com",
+        "Referer": "https://stocktwits.com/",
+    }
     params = {"access_token": STOCKTWITS_TOKEN} if STOCKTWITS_TOKEN else {}
     for s in symbols:
         try:
@@ -217,6 +234,8 @@ def news_for(symbol):
 # ---------------- arbitrary/added ticker (full data on demand) ----------------
 def reddit_counts_for(sym, subs):
     """Search each subreddit for the symbol; count true mentions + avg sentiment."""
+    if not reddit:
+        return 0, {}, 0.0
     by_sub, scores, total = {}, [], 0
     query = f"${sym} OR {sym}"
     for sub in subs:
@@ -357,7 +376,7 @@ def build_one(sym, subs):
 # ---------------- core ----------------
 def build_trending(subs):
     agg = {}
-    for sub in subs:
+    for sub in (subs if reddit else []):
         try:
             for post in reddit.subreddit(sub).hot(limit=POSTS_PER_SUB):
                 text = f"{post.title} {getattr(post,'selftext','') or ''}"

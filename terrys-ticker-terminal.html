@@ -116,6 +116,9 @@
   .chg{font-size:11px}
   .chev{color:var(--text-faint);font-size:10px;width:14px;display:inline-block;transition:transform .15s}
   .row.open .chev{transform:rotate(90deg);color:var(--accent)}
+  .row-actions{white-space:nowrap;display:inline-flex;gap:8px;align-items:center;justify-content:flex-end}
+  .rm-btn{background:none;border:1px solid var(--border-bright);color:var(--text-faint);cursor:pointer;font-size:12px;line-height:1;padding:4px 8px;border-radius:5px;transition:all .15s}
+  .rm-btn:hover{background:rgba(216,58,58,.1);border-color:var(--neg);color:var(--neg)}
   .tbl-empty{padding:34px 14px;text-align:center;color:var(--text-faint);font-family:var(--mono);font-size:12px;line-height:1.8}
 
   .detail-row td{background:var(--bg-detail);padding:0 !important;border-bottom:2px solid var(--border)}
@@ -164,7 +167,7 @@
 </style>
 </head>
 <body>
-  <div class="tape"><div class="tape-track" id="tape"><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.01</span><span class="up">▲0.54%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">227.91</span><span class="down">▼0.38%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">258.63</span><span class="up">▲2.97%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.35</span><span class="down">▼4.35%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.64</span><span class="down">▼1.12%</span></span><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.01</span><span class="up">▲0.54%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">227.91</span><span class="down">▼0.38%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">258.63</span><span class="up">▲2.97%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.35</span><span class="down">▼4.35%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.64</span><span class="down">▼1.12%</span></span></div></div>
+  <div class="tape"><div class="tape-track" id="tape"><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.02</span><span class="up">▲1.80%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">227.92</span><span class="down">▼1.13%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">258.64</span><span class="up">▲4.23%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.36</span><span class="down">▼3.10%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.65</span><span class="down">▼1.87%</span></span><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.02</span><span class="up">▲1.80%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">227.92</span><span class="down">▼1.13%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">258.64</span><span class="up">▲4.23%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.36</span><span class="down">▼3.10%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.65</span><span class="down">▼1.87%</span></span></div></div>
 
   <header>
     <div class="brand"><h1>TERRY'S&nbsp;TICKER&nbsp;TERMINAL</h1><span class="sub">build your watchlist · multi-signal</span></div>
@@ -176,15 +179,15 @@
     </div>
   </header>
 
-  <div class="filters" id="filters"><span class="lbl">Reddit subs</span><div class="chip on">r/wallstreetbets<span class="ct">226</span></div><div class="chip on">r/stocks<span class="ct">80</span></div><div class="chip on">r/investing<span class="ct">47</span></div><div class="chip on">r/options<span class="ct">57</span></div><div class="chip on">r/StockMarket<span class="ct">30</span></div><div class="chip on">r/pennystocks<span class="ct">128</span></div></div>
-  <div class="stats" id="stats"><div class="stat reveal" style="animation-delay:0ms"><div class="k">Watchlist</div><div class="v" style="">5</div><div class="meta">tickers tracked</div></div><div class="stat reveal" style="animation-delay:60ms"><div class="k">Reddit Mentions</div><div class="v" style="">568</div><div class="meta">6 subs · 768 ST msgs</div></div><div class="stat reveal" style="animation-delay:120ms"><div class="k">Most Bullish</div><div class="v" style="color:rgb(43,148,86)">AMD</div><div class="meta">composite +0.72</div></div><div class="stat reveal" style="animation-delay:180ms"><div class="k">Divergences</div><div class="v" style="color:var(--text-dim)">0</div><div class="meta">crowd vs price disagree</div></div></div>
+  <div class="filters" id="filters"><span class="lbl">Reddit subs</span><div class="chip on">r/wallstreetbets<span class="ct">104</span></div><div class="chip on">r/stocks<span class="ct">102</span></div><div class="chip on">r/investing<span class="ct">49</span></div><div class="chip on">r/options<span class="ct">40</span></div><div class="chip on">r/StockMarket<span class="ct">41</span></div><div class="chip on">r/pennystocks<span class="ct">64</span></div></div>
+  <div class="stats" id="stats"><div class="stat reveal" style="animation-delay:0ms"><div class="k">Watchlist</div><div class="v" style="">5</div><div class="meta">tickers tracked</div></div><div class="stat reveal" style="animation-delay:60ms"><div class="k">Reddit Mentions</div><div class="v" style="">400</div><div class="meta">6 subs · 736 ST msgs</div></div><div class="stat reveal" style="animation-delay:120ms"><div class="k">Most Bullish</div><div class="v" style="color:rgb(44,148,86)">AMD</div><div class="meta">composite +0.71</div></div><div class="stat reveal" style="animation-delay:180ms"><div class="k">Divergences</div><div class="v" style="color:var(--amber)">1</div><div class="meta">crowd vs price disagree</div></div></div>
   <div class="mkt-sent" id="mktSent"><div class="ms-head"><span>Watchlist Composite Sentiment <small>· session · 12 pts</small></span>
-    <span class="ms-cur" style="color:rgb(95,121,78)">+0.21 <span class="up" style="font-size:11px">▲0.13 since start</span></span></div>
+    <span class="ms-cur" style="color:rgb(88,125,79)">+0.27 <span class="up" style="font-size:11px">▲0.12 since start</span></span></div>
     <div class="ms-chart"><svg viewBox="0 0 1000 80" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
     <line x1="0" y1="40" x2="1000" y2="40" stroke="var(--border-bright)" stroke-width="1" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"></line>
-    <polygon points="0,40 0.0,37.4 90.9,38.4 181.8,40.3 272.7,38.7 363.6,38.7 454.5,39.7 545.5,38.1 636.4,36.8 727.3,36.5 818.2,35.5 909.1,34.6 1000.0,33.3 1000,40" fill="var(--accent)" opacity="0.08"></polygon>
-    <polyline points="0.0,37.4 90.9,38.4 181.8,40.3 272.7,38.7 363.6,38.7 454.5,39.7 545.5,38.1 636.4,36.8 727.3,36.5 818.2,35.5 909.1,34.6 1000.0,33.3" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
-    <circle cx="1000.0" cy="33.3" r="3" fill="rgb(95,121,78)" vector-effect="non-scaling-stroke"></circle></svg></div></div>
+    <polygon points="0,40 0.0,35.2 90.9,36.5 181.8,38.1 272.7,36.8 363.6,36.5 454.5,37.4 545.5,36.2 636.4,34.6 727.3,34.2 818.2,33.3 909.1,32.6 1000.0,31.2 1000,40" fill="var(--accent)" opacity="0.08"></polygon>
+    <polyline points="0.0,35.2 90.9,36.5 181.8,38.1 272.7,36.8 363.6,36.5 454.5,37.4 545.5,36.2 636.4,34.6 727.3,34.2 818.2,33.3 909.1,32.6 1000.0,31.2" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+    <circle cx="1000.0" cy="31.2" r="3" fill="rgb(88,125,79)" vector-effect="non-scaling-stroke"></circle></svg></div></div>
 
   <div class="panel">
     <div class="panel-head">
@@ -197,44 +200,44 @@
       <th data-k="change_pct">Chg%</th><th></th></tr></thead><tbody id="wlrows"><tr class="row reveal" style="animation-delay:0ms" data-sym="PLTR">
     <td class="l rank">1</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">PLTR</span><span class="n">Palantir Tech</span></div></div></td>
-    <td><div class="reddit-cell"><span class="ment">171 <span class="delta down">-17%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,13.6 4.6,14.0 9.2,11.7 13.8,13.5 18.5,13.5 23.1,11.2 27.7,10.4 32.3,6.0 36.9,6.7 41.5,4.4 46.2,2.8 50.8,2.0 55.4,8.6 60.0,3.2" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
-    <td><div class="st-cell"><span class="st-msgs">122</span><span class="st-ratio down">33% bull</span></div></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(77,130,81)">+0.38</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:14.06%;background:rgb(77,130,81)"></div></div></div></td>
-    <td class="hide-sm px-cell">$59.35</td>
-    <td class="chg down">-4.35%</td>
-    <td><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:22ms" data-sym="AAPL">
+    <td><div class="reddit-cell"><span class="ment">137 <span class="delta up">+1%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,14.0 9.2,12.9 13.8,11.2 18.5,9.6 23.1,8.3 27.7,10.6 32.3,10.4 36.9,9.9 41.5,9.9 46.2,5.0 50.8,4.1 55.4,5.0 60.0,2.0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
+    <td><div class="st-cell"><span class="st-msgs">280</span><span class="st-ratio down">47% bull</span></div></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(104,116,76)">+0.11</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:4.07%;background:rgb(104,116,76)"></div></div></div></td>
+    <td class="hide-sm px-cell">$59.36</td>
+    <td class="chg down">-3.10%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:22ms" data-sym="AAPL">
     <td class="l rank">2</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">AAPL</span><span class="n">Apple Inc</span></div></div></td>
-    <td><div class="reddit-cell"><span class="ment">131 <span class="delta down">-2%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,13.5 9.2,12.9 13.8,12.1 18.5,7.7 23.1,9.1 27.7,10.4 32.3,9.2 36.9,6.5 41.5,3.1 46.2,7.0 50.8,2.0 55.4,5.4 60.0,5.2" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
-    <td><div class="st-cell"><span class="st-msgs">295</span><span class="st-ratio down">32% bull</span></div></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(150,93,69)">-0.34</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:12.58%;background:rgb(150,93,69)"></div></div></div></td>
-    <td class="hide-sm px-cell">$227.91</td>
-    <td class="chg down">-0.38%</td>
-    <td><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:44ms" data-sym="AMD">
+    <td><div class="reddit-cell"><span class="ment">98 <span class="delta up">+24%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,11.2 4.6,14.0 9.2,9.8 13.8,10.5 18.5,10.0 23.1,12.0 27.7,10.6 32.3,6.0 36.9,8.9 41.5,7.3 46.2,7.4 50.8,2.4 55.4,2.0 60.0,2.6" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
+    <td><div class="st-cell"><span class="st-msgs">151</span><span class="st-ratio down">47% bull</span></div></td>
+    <td><div class="sent"><span class="div-flag" title="Crowd and price action disagree — open for the full read">⚠</span><span class="sent-val" style="color:rgb(82,128,80)">+0.33</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:12.21%;background:rgb(82,128,80)"></div></div></div></td>
+    <td class="hide-sm px-cell">$227.92</td>
+    <td class="chg down">-1.13%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:44ms" data-sym="AMD">
     <td class="l rank">3</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">AMD</span><span class="n">Adv. Micro Devices</span></div></div></td>
-    <td><div class="reddit-cell"><span class="ment">126 <span class="delta down">-13%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,13.6 4.6,14.0 9.2,11.3 13.8,9.0 18.5,9.2 23.1,8.1 27.7,7.1 32.3,6.4 36.9,10.2 41.5,2.9 46.2,8.8 50.8,4.3 55.4,2.0 60.0,6.2" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
-    <td><div class="st-cell"><span class="st-msgs">120</span><span class="st-ratio up">78% bull</span></div></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(43,148,86)">+0.72</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:26.64%;background:rgb(43,148,86)"></div></div></div></td>
-    <td class="hide-sm px-cell">$135.64</td>
-    <td class="chg down">-1.12%</td>
-    <td><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:66ms" data-sym="TSLA">
+    <td><div class="reddit-cell"><span class="ment">92 <span class="delta up">+8%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,9.6 9.2,12.0 13.8,11.8 18.5,10.7 23.1,10.5 27.7,6.4 32.3,9.1 36.9,4.0 41.5,6.2 46.2,8.2 50.8,3.3 55.4,6.2 60.0,2.0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
+    <td><div class="st-cell"><span class="st-msgs">188</span><span class="st-ratio up">93% bull</span></div></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(44,148,86)">+0.71</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:26.27%;background:rgb(44,148,86)"></div></div></div></td>
+    <td class="hide-sm px-cell">$135.65</td>
+    <td class="chg down">-1.87%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:66ms" data-sym="TSLA">
     <td class="l rank">4</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">TSLA</span><span class="n">Tesla Inc</span></div></div></td>
-    <td><div class="reddit-cell"><span class="ment">93 <span class="delta down">-1%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,12.8 9.2,12.4 13.8,12.4 18.5,12.3 23.1,10.7 27.7,11.9 32.3,6.7 36.9,7.9 41.5,5.0 46.2,3.9 50.8,8.4 55.4,2.0 60.0,5.0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
-    <td><div class="st-cell"><span class="st-msgs">165</span><span class="st-ratio down">49% bull</span></div></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(123,107,73)">-0.07</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:2.5900000000000003%;background:rgb(123,107,73)"></div></div></div></td>
-    <td class="hide-sm px-cell">$258.63</td>
-    <td class="chg up">+2.97%</td>
-    <td><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:88ms" data-sym="NVDA">
+    <td><div class="reddit-cell"><span class="ment">59 <span class="delta up">+26%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,12.5 9.2,13.0 13.8,10.1 18.5,8.4 23.1,7.4 27.7,11.3 32.3,9.3 36.9,9.6 41.5,8.6 46.2,4.2 50.8,7.9 55.4,6.7 60.0,2.0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
+    <td><div class="st-cell"><span class="st-msgs">86</span><span class="st-ratio up">64% bull</span></div></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(125,106,73)">-0.09</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:3.33%;background:rgb(125,106,73)"></div></div></div></td>
+    <td class="hide-sm px-cell">$258.64</td>
+    <td class="chg up">+4.23%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:88ms" data-sym="NVDA">
     <td class="l rank">5</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">NVDA</span><span class="n">NVIDIA Corp</span></div></div></td>
-    <td><div class="reddit-cell"><span class="ment">47 <span class="delta up">+31%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,12.5 9.2,13.2 13.8,9.7 18.5,13.6 23.1,10.9 27.7,10.5 32.3,11.7 36.9,5.1 41.5,10.1 46.2,2.0 50.8,10.5 55.4,3.5 60.0,5.1" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
-    <td><div class="st-cell"><span class="st-msgs">66</span><span class="st-ratio down">47% bull</span></div></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(80,129,80)">+0.35</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:12.95%;background:rgb(80,129,80)"></div></div></div></td>
-    <td class="hide-sm px-cell">$184.01</td>
-    <td class="chg up">+0.54%</td>
-    <td><span class="chev">▸</span></td></tr></tbody></table>
+    <td><div class="reddit-cell"><span class="ment">14 <span class="delta down">-12%</span></span><svg class="mini-spark" viewBox="0 0 60 16" style="width:60px;height:16px"><polyline points="0.0,14.0 4.6,11.8 9.2,14.0 13.8,12.9 18.5,8.5 23.1,7.5 27.7,9.6 32.3,7.5 36.9,7.5 41.5,5.3 46.2,3.1 50.8,9.6 55.4,8.5 60.0,2.0" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline></svg></div></td>
+    <td><div class="st-cell"><span class="st-msgs">31</span><span class="st-ratio up">62% bull</span></div></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(84,127,80)">+0.31</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:11.47%;background:rgb(84,127,80)"></div></div></div></td>
+    <td class="hide-sm px-cell">$184.02</td>
+    <td class="chg up">+1.80%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr></tbody></table>
   </div>
 
   <footer>
@@ -507,13 +510,14 @@ function rowMainHtml(t,i,A,open){
     <td><div class="sent">${flag?'<span class="div-flag" title="Crowd and price action disagree — open for the full read">⚠</span>':''}<span class="sent-val" style="color:${cc}">${t.composite>0?'+':''}${t.composite.toFixed(2)}</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="${fill}"></div></div></div></td>
     <td class="hide-sm px-cell">$${fmtPx(t.price)}</td>
     <td class="chg ${t.change_pct>=0?'up':'down'}">${t.change_pct>=0?'+':''}${t.change_pct.toFixed(2)}%</td>
-    <td><span class="chev">▸</span></td></tr>`;}
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕ Remove</button><span class="chev">▸</span></td></tr>`;}
 function renderWatch(){updateSortHeaders();const A=state.booted?'':'reveal';const list=sortData(visibleWatch());const tb=$('#wlrows');
   if(!list.length){tb.innerHTML=`<tr><td colspan="8" class="tbl-empty">Your watchlist is empty.<br>Add a ticker above to pull its sentiment, technicals, fundamentals, analyst &amp; news in one view.</td></tr>`;return;}
   tb.innerHTML=list.map((t,i)=>{const open=state.expanded.has(t.symbol);
     return rowMainHtml(t,i,A,open)+(open?`<tr class="detail-row"><td colspan="8">${detailHtml(t)}</td></tr>`:'');}).join('');
   tb.querySelectorAll('tr.row').forEach(tr=>{const sym=tr.dataset.sym;tr.onclick=()=>toggleExpand(sym);
-    const star=tr.querySelector('.star');if(star)star.onclick=ev=>{ev.stopPropagation();removeTicker(sym);};});
+    const star=tr.querySelector('.star');if(star)star.onclick=ev=>{ev.stopPropagation();removeTicker(sym);};
+    const rb=tr.querySelector('.rm-btn');if(rb)rb.onclick=ev=>{ev.stopPropagation();removeTicker(sym);};});
   list.forEach(t=>{if(state.expanded.has(t.symbol))loadNews(t.symbol);});}
 function toggleExpand(sym){state.expanded.has(sym)?state.expanded.delete(sym):state.expanded.add(sym);renderWatch();}
 
