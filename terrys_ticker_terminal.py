@@ -445,6 +445,28 @@ def disclosures_for(sym):
     rows.sort(key=lambda x: x.get("date") or "", reverse=True)
     return rows[:5]
 
+def _clampf(x, lo=-1.0, hi=1.0):
+    return max(lo, min(hi, x))
+
+def blend_composite(news_sent, pc_ratio, short_vol_pct, reddit_sent, reddit_n, st_sent, st_n):
+    """Consolidated sentiment across every source that has data, weights renormalized.
+    news 35% · options put/call 30% · short volume 15% · reddit 10% · stocktwits 10%."""
+    sigs = []
+    if news_sent is not None:
+        sigs.append((_clampf(news_sent), 0.35))
+    if pc_ratio:
+        sigs.append((_clampf((1.0 - pc_ratio) / 0.6), 0.30))
+    if short_vol_pct is not None:
+        sigs.append((_clampf((45.0 - short_vol_pct) / 15.0), 0.15))
+    if reddit_n and reddit_n > 0:
+        sigs.append((_clampf(reddit_sent or 0.0), 0.10))
+    if st_n and st_n > 0:
+        sigs.append((_clampf(st_sent or 0.0), 0.10))
+    if not sigs:
+        return 0.0
+    wsum = sum(w for _, w in sigs)
+    return round(sum(v * w for v, w in sigs) / wsum, 2)
+
 def build_one(sym, subs):
     """Full ticker object (identical shape to trending rows) for any symbol."""
     key = f"ticker:{sym}:" + ",".join(sorted(subs)); now = time.time()
@@ -471,6 +493,12 @@ def build_one(sym, subs):
         row.update(options_flow_for(sym))
         row["short_vol_pct"] = finra_short_volume().get(sym)
         row["disclosures"] = disclosures_for(sym)
+        # consolidated sentiment across all working sources
+        narts = news_for(sym).get("articles", [])
+        news_sent = round(sum(a.get("sentiment", 0) for a in narts) / len(narts), 2) if narts else None
+        row["news_sent"] = news_sent
+        row["composite"] = blend_composite(news_sent, row.get("pc_ratio"), row.get("short_vol_pct"),
+                                            r_sent, mentions, stx["st_sentiment"], stx["st_messages"])
     with _lock:
         _cache[key] = (now, row)
     return row
