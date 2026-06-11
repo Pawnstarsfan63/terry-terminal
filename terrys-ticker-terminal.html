@@ -71,6 +71,22 @@
   .ms-cur{font-size:15px;font-weight:600}
   .ms-chart{margin-top:8px}
 
+  .market-pulse{display:grid;grid-template-columns:1.15fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+  .indices{background:var(--bg-panel);padding:14px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;align-content:start}
+  .idx-card{padding:10px 12px}
+  .idx-name{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-faint)}
+  .idx-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text);margin-top:3px}
+  .idx-chg{font-family:var(--mono);font-size:11px;margin-top:1px}
+  .macro-news{background:var(--bg-panel);padding:14px 18px;min-width:0}
+  .macro-head{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;display:flex;justify-content:space-between}
+  .macro-head span{color:var(--text-dim);text-transform:none;letter-spacing:0}
+  .macro-list{display:flex;flex-direction:column;gap:0}
+  .macro-item{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border)}
+  .macro-item:last-child{border-bottom:none}
+  .macro-item a,.macro-item .mi-title{font-size:12px;color:var(--text);text-decoration:none;line-height:1.35;font-weight:500}
+  .macro-item a:hover{color:var(--accent);text-decoration:underline}
+  .macro-loading{font-family:var(--mono);font-size:11px;color:var(--text-faint);padding:6px 0}
+
   .panel{background:var(--bg-panel);border-bottom:1px solid var(--border)}
   .panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap}
   .panel-head h2{font-family:var(--mono);font-size:12px;letter-spacing:2px;color:var(--text);text-transform:uppercase;font-weight:600}
@@ -171,6 +187,9 @@
     .stats{grid-template-columns:repeat(2,1fr)}
     .stat{padding:12px 14px}.stat .v{font-size:20px}
     .mkt-sent,.news-wrap{padding:12px 14px}
+    .market-pulse{grid-template-columns:1fr}
+    .indices{grid-template-columns:repeat(2,1fr);padding:12px 14px}
+    .macro-news{padding:12px 14px}
     .panel-head{padding:12px 14px}
     .addbar{width:100%;flex-wrap:wrap}.addbar input{width:auto;flex:1;min-width:0}
     .tbl .hide-xs{display:none}
@@ -192,7 +211,7 @@
 </style>
 </head>
 <body>
-  <div class="tape"><div class="tape-track" id="tape"><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.40</span><span class="up">▲1.53%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">228.41</span><span class="up">▲0.61%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">239.26</span><span class="down">▼4.04%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.49</span><span class="down">▼3.37%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.94</span><span class="down">▼2.14%</span></span><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.40</span><span class="up">▲1.53%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">228.41</span><span class="up">▲0.61%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">239.26</span><span class="down">▼4.04%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.49</span><span class="down">▼3.37%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.94</span><span class="down">▼2.14%</span></span></div></div>
+  <div class="tape"><div class="tape-track" id="tape"><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.41</span><span class="up">▲1.44%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">228.41</span><span class="up">▲0.52%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">239.26</span><span class="down">▼4.13%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.49</span><span class="down">▼3.46%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.94</span><span class="down">▼2.23%</span></span><span class="tape-item"><span class="sym">NVDA</span><span class="px">184.41</span><span class="up">▲1.44%</span></span><span class="tape-item"><span class="sym">AAPL</span><span class="px">228.41</span><span class="up">▲0.52%</span></span><span class="tape-item"><span class="sym">TSLA</span><span class="px">239.26</span><span class="down">▼4.13%</span></span><span class="tape-item"><span class="sym">PLTR</span><span class="px">59.49</span><span class="down">▼3.46%</span></span><span class="tape-item"><span class="sym">AMD</span><span class="px">135.94</span><span class="down">▼2.23%</span></span></div></div>
 
   <header>
     <div class="brand"><h1>TERRY'S&nbsp;TICKER&nbsp;TERMINAL</h1><span class="sub">build your watchlist · multi-signal</span></div>
@@ -204,14 +223,19 @@
     </div>
   </header>
 
-  <div class="stats" id="stats"><div class="stat reveal" style="animation-delay:0ms"><div class="k">Watchlist</div><div class="v" style="">5</div><div class="meta">tickers tracked</div></div><div class="stat reveal" style="animation-delay:60ms"><div class="k">Avg Sentiment</div><div class="v" style="color:rgb(125,106,73)">-0.09</div><div class="meta">composite, all tickers</div></div><div class="stat reveal" style="animation-delay:120ms"><div class="k">Most Bullish</div><div class="v" style="color:rgb(47,146,86)">PLTR</div><div class="meta">composite +0.68</div></div><div class="stat reveal" style="animation-delay:180ms"><div class="k">Divergences</div><div class="v" style="color:var(--amber)">3</div><div class="meta">sentiment vs price disagree</div></div></div>
+  <section class="market-pulse">
+    <div class="indices" id="indices"><div class="idx-card"><div class="idx-name">S&amp;P 500</div><div class="idx-val">5,834.22</div><div class="idx-chg" style="color:var(--pos)">▲ +0.59%</div></div><div class="idx-card"><div class="idx-name">Nasdaq</div><div class="idx-val">18,672.05</div><div class="idx-chg" style="color:var(--pos)">▲ +0.93%</div></div><div class="idx-card"><div class="idx-name">Dow Jones</div><div class="idx-val">42,920.75</div><div class="idx-chg" style="color:var(--pos)">▲ +0.99%</div></div><div class="idx-card"><div class="idx-name">Russell 2000</div><div class="idx-val">2,302.99</div><div class="idx-chg" style="color:var(--pos)">▲ +0.13%</div></div><div class="idx-card"><div class="idx-name">VIX</div><div class="idx-val">14.98</div><div class="idx-chg" style="color:var(--neg)">▼ -0.11%</div></div><div class="idx-card"><div class="idx-name">10Y Yield</div><div class="idx-val">4.28%</div><div class="idx-chg" style="color:var(--pos)">▲ +0.76%</div></div></div>
+    <div class="macro-news"><div class="macro-head">Macro &amp; Market News <span id="macroSrc">general</span></div><div id="macroNews" class="macro-list"><div class="macro-item"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span><div><span class="mi-title">Fed holds rates steady as inflation cools</span><div class="news-src">Market Wire · 0s ago</div></div></div><div class="macro-item"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span><div><span class="mi-title">Jobs report tops estimates, markets rally</span><div class="news-src">Market Wire · 1h ago</div></div></div><div class="macro-item"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span><div><span class="mi-title">Treasury yields slip ahead of CPI data</span><div class="news-src">Market Wire · 2h ago</div></div></div><div class="macro-item"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span><div><span class="mi-title">Tech megacaps lead broad market gains</span><div class="news-src">Market Wire · 3h ago</div></div></div><div class="macro-item"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span><div><span class="mi-title">Oil prices climb on supply concerns</span><div class="news-src">Market Wire · 4h ago</div></div></div><div class="macro-item"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span><div><span class="mi-title">Consumer sentiment rebounds in latest survey</span><div class="news-src">Market Wire · 5h ago</div></div></div></div></div>
+  </section>
+
+  <div class="stats" id="stats"><div class="stat reveal" style="animation-delay:0ms"><div class="k">Watchlist</div><div class="v" style="">5</div><div class="meta">tickers tracked</div></div><div class="stat reveal" style="animation-delay:60ms"><div class="k">Avg Sentiment</div><div class="v" style="color:rgb(124,106,73)">-0.09</div><div class="meta">composite, all tickers</div></div><div class="stat reveal" style="animation-delay:120ms"><div class="k">Most Bullish</div><div class="v" style="color:rgb(112,112,75)">TSLA</div><div class="meta">composite +0.03</div></div><div class="stat reveal" style="animation-delay:180ms"><div class="k">Divergences</div><div class="v" style="color:var(--text-dim)">0</div><div class="meta">sentiment vs price disagree</div></div></div>
   <div class="mkt-sent" id="mktSent"><div class="ms-head"><span>Watchlist Composite Sentiment <small>· session · 12 pts</small></span>
-    <span class="ms-cur" style="color:rgb(125,106,73)">-0.09 <span class="up" style="font-size:11px">▲0.13 since start</span></span></div>
+    <span class="ms-cur" style="color:rgb(124,106,73)">-0.09 <span class="up" style="font-size:11px">▲0.12 since start</span></span></div>
     <div class="ms-chart"><svg viewBox="0 0 1000 80" preserveAspectRatio="none" style="width:100%;height:80px;display:block">
     <line x1="0" y1="40" x2="1000" y2="40" stroke="var(--border-bright)" stroke-width="1" stroke-dasharray="5 5" vector-effect="non-scaling-stroke"></line>
-    <polygon points="0,40 0.0,47.0 90.9,48.0 181.8,49.9 272.7,48.3 363.6,48.3 454.5,49.3 545.5,47.7 636.4,46.4 727.3,46.1 818.2,45.1 909.1,44.2 1000.0,42.9 1000,40" fill="var(--accent)" opacity="0.08"></polygon>
-    <polyline points="0.0,47.0 90.9,48.0 181.8,49.9 272.7,48.3 363.6,48.3 454.5,49.3 545.5,47.7 636.4,46.4 727.3,46.1 818.2,45.1 909.1,44.2 1000.0,42.9" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
-    <circle cx="1000.0" cy="42.9" r="3" fill="rgb(125,106,73)" vector-effect="non-scaling-stroke"></circle></svg></div></div>
+    <polygon points="0,40 0.0,46.7 90.9,48.0 181.8,49.6 272.7,48.3 363.6,48.3 454.5,49.3 545.5,47.7 636.4,46.1 727.3,46.1 818.2,44.8 909.1,44.2 1000.0,42.8 1000,40" fill="var(--accent)" opacity="0.08"></polygon>
+    <polyline points="0.0,46.7 90.9,48.0 181.8,49.6 272.7,48.3 363.6,48.3 454.5,49.3 545.5,47.7 636.4,46.1 727.3,46.1 818.2,44.8 909.1,44.2 1000.0,42.8" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+    <circle cx="1000.0" cy="42.8" r="3" fill="rgb(124,106,73)" vector-effect="non-scaling-stroke"></circle></svg></div></div>
 
   <div class="panel">
     <div class="panel-head">
@@ -221,46 +245,46 @@
     <table class="tbl"><thead><tr>
       <th class="l hide-xs" data-k="rank">#</th><th class="l" data-k="symbol">Ticker</th><th class="hide-xs" data-k="news_sent">News</th>
       <th class="hide-xs" data-k="momentum">Momentum</th><th data-k="sentiment">Composite</th><th data-k="price">Price</th>
-      <th data-k="change_pct">Chg%</th><th></th></tr></thead><tbody id="wlrows"><tr class="row reveal" style="animation-delay:0ms" data-sym="PLTR">
+      <th data-k="change_pct">Chg%</th><th></th></tr></thead><tbody id="wlrows"><tr class="row reveal" style="animation-delay:0ms" data-sym="TSLA">
     <td class="l rank hide-xs">1</td>
-    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">PLTR</span><span class="n">Palantir Tech</span></div></div></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span> <span style="font-size:11px;color:var(--pos)">+0.62</span></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">WEAK</span> <span style="font-size:11px;color:var(--neg)">-0.63</span></td>
-    <td><div class="sent"><span class="div-flag" title="Sentiment and momentum disagree — open for the full read">⚠</span><span class="sent-val" style="color:rgb(47,146,86)">+0.68</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:25.16%;background:rgb(47,146,86)"></div></div></div></td>
-    <td class="px-cell">$59.49</td>
-    <td class="chg down">-3.37%</td>
-    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:22ms" data-sym="AAPL">
-    <td class="l rank hide-xs">2</td>
-    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">AAPL</span><span class="n">Apple Inc</span></div></div></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span> <span style="font-size:11px;color:var(--pos)">+0.31</span></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">WEAK</span> <span style="font-size:11px;color:var(--neg)">-0.42</span></td>
-    <td><div class="sent"><span class="div-flag" title="Sentiment and momentum disagree — open for the full read">⚠</span><span class="sent-val" style="color:rgb(99,119,77)">+0.16</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:5.92%;background:rgb(99,119,77)"></div></div></div></td>
-    <td class="px-cell">$228.41</td>
-    <td class="chg up">+0.61%</td>
-    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:44ms" data-sym="NVDA">
-    <td class="l rank hide-xs">3</td>
-    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">NVDA</span><span class="n">NVIDIA Corp</span></div></div></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span> <span style="font-size:11px;color:var(--neg)">-0.76</span></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--text-dim);background:rgba(151,164,179,.15)">NEUTRAL</span> <span style="font-size:11px;color:var(--text-dim)">-0.08</span></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(150,93,69)">-0.34</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:12.58%;background:rgb(150,93,69)"></div></div></div></td>
-    <td class="px-cell">$184.40</td>
-    <td class="chg up">+1.53%</td>
-    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:66ms" data-sym="TSLA">
-    <td class="l rank hide-xs">4</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">TSLA</span><span class="n">Tesla Inc</span></div></div></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span> <span style="font-size:11px;color:var(--neg)">-0.64</span></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--text-dim);background:rgba(151,164,179,.15)">NEUTRAL</span> <span style="font-size:11px;color:var(--text-dim)">-0.02</span></td>
-    <td><div class="sent"><span class="sent-val" style="color:rgb(159,88,67)">-0.43</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:15.91%;background:rgb(159,88,67)"></div></div></div></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span> <span style="font-size:11px;color:var(--pos)">+0.60</span></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">WEAK</span> <span style="font-size:11px;color:var(--neg)">-0.60</span></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(112,112,75)">+0.03</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:1.1099999999999999%;background:rgb(112,112,75)"></div></div></div></td>
     <td class="px-cell">$239.26</td>
-    <td class="chg down">-4.04%</td>
-    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:88ms" data-sym="AMD">
-    <td class="l rank hide-xs">5</td>
+    <td class="chg down">-4.13%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:22ms" data-sym="NVDA">
+    <td class="l rank hide-xs">2</td>
+    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">NVDA</span><span class="n">NVIDIA Corp</span></div></div></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span> <span style="font-size:11px;color:var(--pos)">+0.49</span></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">STRONG</span> <span style="font-size:11px;color:var(--pos)">+0.60</span></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(114,111,75)">+0.01</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="left:50%;width:0.37%;background:rgb(114,111,75)"></div></div></div></td>
+    <td class="px-cell">$184.41</td>
+    <td class="chg up">+1.44%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:44ms" data-sym="AMD">
+    <td class="l rank hide-xs">3</td>
     <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">AMD</span><span class="n">Adv. Micro Devices</span></div></div></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span> <span style="font-size:11px;color:var(--neg)">-0.47</span></td>
-    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">STRONG</span> <span style="font-size:11px;color:var(--pos)">+0.40</span></td>
-    <td><div class="sent"><span class="div-flag" title="Sentiment and momentum disagree — open for the full read">⚠</span><span class="sent-val" style="color:rgb(169,83,66)">-0.53</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:19.61%;background:rgb(169,83,66)"></div></div></div></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">BULL</span> <span style="font-size:11px;color:var(--pos)">+0.78</span></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">STRONG</span> <span style="font-size:11px;color:var(--pos)">+0.47</span></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(119,109,74)">-0.03</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:1.1099999999999999%;background:rgb(119,109,74)"></div></div></div></td>
     <td class="px-cell">$135.94</td>
-    <td class="chg down">-2.14%</td>
+    <td class="chg down">-2.23%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:66ms" data-sym="AAPL">
+    <td class="l rank hide-xs">4</td>
+    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">AAPL</span><span class="n">Apple Inc</span></div></div></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--neg);background:rgba(216,58,58,.12)">BEAR</span> <span style="font-size:11px;color:var(--neg)">-0.34</span></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--pos);background:rgba(21,163,91,.12)">STRONG</span> <span style="font-size:11px;color:var(--pos)">+0.54</span></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(125,106,73)">-0.09</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:3.33%;background:rgb(125,106,73)"></div></div></div></td>
+    <td class="px-cell">$228.41</td>
+    <td class="chg up">+0.52%</td>
+    <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr><tr class="row reveal" style="animation-delay:88ms" data-sym="PLTR">
+    <td class="l rank hide-xs">5</td>
+    <td class="l"><div class="sym-cell"><button class="star" title="remove from watchlist">★</button><div class="sym-main"><span class="s">PLTR</span><span class="n">Palantir Tech</span></div></div></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--text-dim);background:rgba(151,164,179,.15)">NEUTR</span> <span style="font-size:11px;color:var(--text-dim)">-0.03</span></td>
+    <td class="hide-xs"><span class="news-chip" style="color:var(--text-dim);background:rgba(151,164,179,.15)">NEUTRAL</span> <span style="font-size:11px;color:var(--text-dim)">+0.05</span></td>
+    <td><div class="sent"><span class="sent-val" style="color:rgb(152,92,69)">-0.36</span><div class="sent-bar"><div class="mid"></div><div class="fill" style="right:50%;width:13.32%;background:rgb(152,92,69)"></div></div></div></td>
+    <td class="px-cell">$59.49</td>
+    <td class="chg down">-3.46%</td>
     <td class="row-actions"><button class="rm-btn" title="Remove from watchlist">✕<span class="rm-label"> Remove</span></button><span class="chev">▸</span></td></tr></tbody></table>
   </div>
 
@@ -346,6 +370,15 @@ function genMockTicker(sym,name,price0,shares,subs,rnd){
     price,change_pct,volume,avg_volume,market_cap,day_low,day_high,w52_low,w52_high,ma50,ma200,rsi,
     pe,fwd_pe,peg,ps,pb,eps,profit_margin,roe,rev_growth,div_yield,beta,target_price,analysts,recommendation,next_earnings,short_pct,
     pc_ratio,opt_volume,iv,flow_signal,disclosures,short_vol_pct};
+}
+function genMockMacro(){
+  const tw=(Date.now()/45000|0);const rnd=seededRand(777+tw);
+  const base={'S&P 500':5800,'Nasdaq':18500,'Dow Jones':42500,'Russell 2000':2300,'VIX':15,'10Y Yield':4.25};
+  const indices=[['^GSPC','S&P 500'],['^IXIC','Nasdaq'],['^DJI','Dow Jones'],['^RUT','Russell 2000'],['^VIX','VIX'],['^TNX','10Y Yield']].map(([symbol,name])=>{
+    const chg=+((rnd()-0.5)*2).toFixed(2);const price=+(base[name]*(1+chg/100)).toFixed(2);return {symbol,name,price,change_pct:chg};});
+  const heads=['Fed holds rates steady as inflation cools','Jobs report tops estimates, markets rally','Treasury yields slip ahead of CPI data','Tech megacaps lead broad market gains','Oil prices climb on supply concerns','Consumer sentiment rebounds in latest survey'];
+  const news=heads.map((title,i)=>({title,publisher:'Market Wire',url:'',published:Date.now()-i*3.6e6,sentiment:+((rnd()-0.4)*1.6).toFixed(2)}));
+  return {indices,news,market_open:isMarketOpen()};
 }
 function mockFullTickers(symbols,subs){
   const tw=(Date.now()/45000|0);
@@ -535,7 +568,7 @@ function detailHtml(t){
       <div class="kv"><span class="k">Flow read</span><span class="v"><span class="news-chip" style="color:${fsm[1]};background:${fsm[2]}">${fsm[0]}</span></span></div></div>
   </div>
   <div class="news-wrap"><div class="news-head">Supporting Headlines <span>sentiment-tagged</span></div><div class="news-list" data-news="${t.symbol}"><div class="news-loading">loading headlines…</div></div></div>
-  <div class="news-wrap" style="border-top:1px solid var(--border)"><div class="news-head">Politician &amp; Insider Activity <span>STOCK Act + Form 4</span></div>${(t.disclosures&&t.disclosures.length)?t.disclosures.map(discItemHtml).join(''):'<div class="news-loading">no recent disclosures for this ticker</div>'}</div>`;}
+  <div class="news-wrap" style="border-top:1px solid var(--border)"><div class="news-head">Insider &amp; Politician Activity <span>Form 4 · congressional via FMP key</span></div>${(t.disclosures&&t.disclosures.length)?t.disclosures.map(discItemHtml).join(''):'<div class="news-loading">no recent insider filings — congressional trades need a free FMP key</div>'}</div>`;}
 
 function newsItemHtml(a){const s=a.sentiment||0;const lab=s>0.1?'BULL':s<-0.1?'BEAR':'NEUTR';
   const col=s>0.1?'var(--pos)':s<-0.1?'var(--neg)':'var(--text-dim)';const bg=s>0.1?'rgba(21,163,91,.12)':s<-0.1?'rgba(216,58,58,.12)':'rgba(151,164,179,.15)';
@@ -588,9 +621,26 @@ function removeTicker(sym){state.watchlist=state.watchlist.filter(s=>s!==sym);st
   buildWatchlistData().then(()=>{renderFilters();renderStats();renderTape();renderMarketChart();renderWatch();});}
 
 function relTime(iso){const s=(Date.now()-new Date(iso))/1000;if(s<60)return Math.round(s)+'s ago';if(s<3600)return Math.round(s/60)+'m ago';return Math.round(s/3600)+'h ago';}
+async function fetchMacro(){
+  if(CONFIG.USE_MOCK)return genMockMacro();
+  try{const r=await fetch(`${CONFIG.API_BASE}/api/macro`);if(!r.ok)throw 0;return await r.json();}catch(e){return {indices:[],news:[]};}
+}
+function renderIndices(list){const box=$('#indices');if(!box)return;
+  if(!list||!list.length){box.innerHTML='<div class="macro-loading">indices unavailable</div>';return;}
+  box.innerHTML=list.map(ix=>{const up=ix.change_pct>=0;const col=up?'var(--pos)':'var(--neg)';
+    const val=ix.symbol==='^TNX'?ix.price.toFixed(2)+'%':ix.price.toLocaleString(undefined,{maximumFractionDigits:2});
+    return `<div class="idx-card"><div class="idx-name">${escapeHtml(ix.name)}</div><div class="idx-val">${val}</div><div class="idx-chg" style="color:${col}">${up?'▲':'▼'} ${up?'+':''}${ix.change_pct.toFixed(2)}%</div></div>`;}).join('');}
+function relTimeMaybe(v){try{let ms=(typeof v==='number')?(v<2e10?v*1000:v):Date.parse(v);if(!ms)return '';const s=(Date.now()-ms)/1000;if(s<60)return Math.round(s)+'s ago';if(s<3600)return Math.round(s/60)+'m ago';if(s<86400)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}catch(e){return '';}}
+function macroItemHtml(a){const s=a.sentiment||0;const lab=s>0.1?['BULL','var(--pos)','rgba(21,163,91,.12)']:s<-0.1?['BEAR','var(--neg)','rgba(216,58,58,.12)']:['NEUTR','var(--text-dim)','rgba(151,164,179,.15)'];
+  const href=a.url?`href="${a.url}" target="_blank" rel="noopener"`:'';const tEl=a.url?'a':'span';const when=a.published?relTimeMaybe(a.published):'';
+  return `<div class="macro-item"><span class="news-chip" style="color:${lab[1]};background:${lab[2]}">${lab[0]}</span><div><${tEl} class="mi-title" ${href}>${escapeHtml(a.title)}</${tEl}><div class="news-src">${escapeHtml(a.publisher||'')}${when?' · '+when:''}</div></div></div>`;}
+function renderMacroNews(arts){const box=$('#macroNews');if(!box)return;
+  box.innerHTML=(arts&&arts.length)?arts.map(macroItemHtml).join(''):'<div class="macro-loading">market news unavailable — needs a Finnhub key</div>';}
+async function loadMacro(){const m=await fetchMacro();renderIndices(m.indices);renderMacroNews(m.news);}
+
 async function load(){const btn=$('#refresh');btn.classList.add('spin');
   try{await buildWatchlistData();recordHistory();state.updatedAt=new Date().toISOString();
-    renderFilters();renderStats();renderTape();renderMarketChart();renderWatch();
+    renderFilters();renderStats();renderTape();renderMarketChart();renderWatch();loadMacro();
     $('#updated').textContent='updated '+relTime(state.updatedAt);
     const open=isMarketOpen();$('#mkt').className=open?'mkt-open':'mkt-closed';$('#mkt').textContent=open?'● MARKET OPEN':'○ MARKET CLOSED';
     state.booted=true;

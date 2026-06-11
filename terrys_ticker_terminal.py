@@ -394,9 +394,14 @@ def finnhub_insiders(sym):
     if not FINNHUB_API_KEY: return []
     rows = []
     try:
+        from datetime import timedelta
+        to = datetime.now(timezone.utc).date()
+        frm = to - timedelta(days=180)        # explicit window so recent filings reliably return
         r = requests.get("https://finnhub.io/api/v1/stock/insider-transactions",
-                         params={"symbol": sym, "token": FINNHUB_API_KEY}, timeout=6)
-        if r.status_code != 200: return []
+                         params={"symbol": sym, "from": str(frm), "to": str(to), "token": FINNHUB_API_KEY},
+                         timeout=6)
+        if r.status_code != 200:
+            print("finnhub insider status", r.status_code, "for", sym); return []
         for d in (r.json().get("data") or []):
             code = str(d.get("transactionCode", "")).upper()
             buy = code in ("P", "A")          # P = purchase, A = grant/acquire
@@ -408,7 +413,6 @@ def finnhub_insiders(sym):
             rows.append({"who": d.get("name") or "Insider", "role": "Insider",
                          "type": "BUY" if buy else "SELL", "amount": amt,
                          "date": str(d.get("transactionDate") or "")[:10]})
-            if len(rows) >= 5: break
     except Exception as e:
         print("finnhub insider error:", e)
     rows.sort(key=lambda x: x.get("date") or "", reverse=True)
@@ -444,6 +448,58 @@ def disclosures_for(sym):
             continue
     rows.sort(key=lambda x: x.get("date") or "", reverse=True)
     return rows[:5]
+
+# ---------------- Macro: indices + general market news (free) ----------------
+INDEX_MAP = [("^GSPC","S&P 500"),("^IXIC","Nasdaq"),("^DJI","Dow Jones"),
+             ("^RUT","Russell 2000"),("^VIX","VIX"),("^TNX","10Y Yield")]
+MACRO_TTL = 120
+_macro_cache = {}
+
+def indices_for():
+    out = []
+    for sym, label in INDEX_MAP:
+        try:
+            t = yf.Ticker(sym); fi = t.fast_info
+            last = _fi(fi,"lastPrice","last_price"); prev = _fi(fi,"previousClose","previous_close")
+            if last is None:
+                h = t.history(period="2d")
+                if not h.empty:
+                    last = float(h["Close"].iloc[-1]); prev = float(h["Close"].iloc[0])
+            if last is None: continue
+            chg = ((last-prev)/prev*100) if prev else 0.0
+            out.append({"symbol": sym, "name": label, "price": round(float(last),2),
+                        "change_pct": round(float(chg),2)})
+        except Exception as e:
+            print("index error", sym, e)
+    return out
+
+def macro_news():
+    if not FINNHUB_API_KEY: return []
+    try:
+        r = requests.get("https://finnhub.io/api/v1/news",
+                         params={"category":"general","token":FINNHUB_API_KEY}, timeout=6)
+        if r.status_code != 200: return []
+        arts = []
+        for n in (r.json() or []):
+            title = n.get("headline")
+            if not title: continue
+            arts.append({"title": title, "publisher": n.get("source",""), "url": n.get("url",""),
+                         "published": n.get("datetime"), "sentiment": score_headline(title)})
+            if len(arts) >= 6: break
+        return arts
+    except Exception as e:
+        print("macro news error:", e); return []
+
+def build_macro():
+    now = time.time()
+    with _lock:
+        if "m" in _macro_cache and now - _macro_cache["m"][0] < MACRO_TTL:
+            return _macro_cache["m"][1]
+    payload = {"indices": indices_for(), "news": macro_news(),
+               "market_open": is_market_open(), "updated": datetime.now(timezone.utc).isoformat()}
+    with _lock:
+        _macro_cache["m"] = (now, payload)
+    return payload
 
 def _clampf(x, lo=-1.0, hi=1.0):
     return max(lo, min(hi, x))
@@ -556,6 +612,10 @@ def trending():
     with _lock: _cache[key] = (now, payload)
     return jsonify(payload)
 
+@app.route("/api/macro")
+def macro_route():
+    return jsonify(build_macro())
+
 @app.route("/api/quotes")
 def quotes():
     syms = [s.strip().upper() for s in request.args.get("symbols","").split(",") if s.strip()]
@@ -595,11 +655,11 @@ def home():
 
 @app.route("/health")
 def health():
-    sources = ["yfinance(price/MA/RSI/options)", "finra(short-vol)"]
-    sources.append("finnhub(news/insider)" if FINNHUB_API_KEY else "finnhub:off")
+    sources = ["yfinance(price/MA/RSI/options/indices)", "finra(short-vol)"]
+    sources.append("finnhub(news/insider/macro)" if FINNHUB_API_KEY else "finnhub:off")
     sources.append("fmp(congress/insider)" if FMP_API_KEY else "fmp:off")
     return jsonify({"ok": True, "service": "terrys-ticker-terminal", "sources": sources,
-                    "routes": ["/api/tickers","/api/news","/api/quotes"]})
+                    "routes": ["/api/tickers","/api/news","/api/macro","/api/quotes"]})
 
 if __name__ == "__main__":
     print("TERRY'S TICKER TERMINAL backend -> http://localhost:8000  (set CONFIG.USE_MOCK=false in the HTML)")

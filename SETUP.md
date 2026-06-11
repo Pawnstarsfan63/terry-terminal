@@ -41,7 +41,7 @@ Download these three from the chat into one folder:
    | Key | Value | Enables |
    |---|---|---|
    | `FINNHUB_API_KEY` | free key from finnhub.io (**recommended**) | Cloud-reliable news + finance-aware sentiment + insider trades |
-   | `FMP_API_KEY` | free key from financialmodelingprep.com | Adds congressional (politician) trades to the Insider panel |
+   | `FMP_API_KEY` | free key from financialmodelingprep.com | Adds **congressional/politician** trades (Finnhub free only does insider Form 4) |
    | `STOCKTWITS_TOKEN` | free Stocktwits token | higher Stocktwits rate limit (often still IP-blocked on cloud) |
    | `REDDIT_CLIENT_ID` | (see Phase 4) | Reddit mentions column |
    | `REDDIT_CLIENT_SECRET` | (see Phase 4) | Reddit mentions column |
