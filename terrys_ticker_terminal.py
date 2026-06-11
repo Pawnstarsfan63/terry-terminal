@@ -38,6 +38,7 @@ REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET", "PUT_SECRET_HERE")
 REDDIT_USER_AGENT    = os.getenv("REDDIT_USER_AGENT",    "terrys-ticker-terminal/1.0 by u/yourname")
 STOCKTWITS_TOKEN     = os.getenv("STOCKTWITS_TOKEN", "")
 FMP_API_KEY          = os.getenv("FMP_API_KEY", "")   # optional: congressional + insider disclosures (financialmodelingprep.com, free tier)
+FINNHUB_API_KEY      = os.getenv("FINNHUB_API_KEY", "")  # optional: cloud-reliable news + insider transactions (finnhub.io, free tier)
 
 POSTS_PER_SUB = 60
 CACHE_TTL     = 300
@@ -202,34 +203,109 @@ def stocktwits_for(symbols):
             continue
     return out
 
-# ---------------- News (Yahoo) + headline sentiment ----------------
+# ---------------- News + finance-aware headline sentiment ----------------
+# VADER reads everyday emotion; it misreads market language ("cuts guidance" = bad,
+# "inks deal" = good). This overlay nudges scores using finance keywords.
+FIN_BULL = {"beat","beats","surge","surges","soar","soars","soaring","rally","rallies","rallied",
+    "upgrade","upgraded","raises","raised","record","jumps","gains","outperform","tops","wins",
+    "deal","deals","approval","approved","breakout","bullish","optimistic","partnership","contract",
+    "awarded","buyback","acquire","acquisition","expands","launches","wins"}
+FIN_BEAR = {"miss","misses","cut","cuts","plunge","plunges","downgrade","downgraded","falls","slump",
+    "slumps","warn","warns","warning","probe","lawsuit","sued","layoffs","recall","halts","bearish",
+    "weak","loss","losses","fraud","investigation","selloff","bankruptcy","default","slashes",
+    "disappoints","disappointing","plummets","tumbles","slides","sinks"}
+
+def score_headline(text):
+    """VADER baseline + a finance keyword overlay (whole-word matches)."""
+    if not text: return 0.0
+    base = vader.polarity_scores(text)["compound"]
+    words = set(re.findall(r"[a-z']+", text.lower()))
+    bump = 0.30 * len(words & FIN_BULL) - 0.30 * len(words & FIN_BEAR)
+    return round(max(-1.0, min(1.0, base + bump)), 2)
+
+def finnhub_news(symbol):
+    """Company news via Finnhub (free tier, auth by key so it works from cloud). None if unavailable."""
+    if not FINNHUB_API_KEY: return None
+    try:
+        from datetime import timedelta
+        to = datetime.now(timezone.utc).date()
+        frm = to - timedelta(days=7)
+        r = requests.get("https://finnhub.io/api/v1/company-news",
+                         params={"symbol": symbol, "from": str(frm), "to": str(to), "token": FINNHUB_API_KEY},
+                         timeout=6)
+        if r.status_code != 200: return None
+        arts = []
+        for n in (r.json() or []):
+            title = n.get("headline")
+            if not title: continue
+            arts.append({"title": title, "publisher": n.get("source", ""), "url": n.get("url", ""),
+                         "published": n.get("datetime"), "sentiment": score_headline(title)})
+            if len(arts) >= 4: break
+        return arts or None
+    except Exception as e:
+        print("finnhub news error:", e); return None
+
+def yahoo_news(symbol):
+    arts = []
+    try:
+        raw = yf.Ticker(symbol).news or []
+        for n in raw[:6]:
+            c = n.get("content") or n
+            title = c.get("title") or n.get("title")
+            if not title: continue
+            publisher = (c.get("provider") or {}).get("displayName") or n.get("publisher") or ""
+            url = ((c.get("canonicalUrl") or {}).get("url")
+                   or (c.get("clickThroughUrl") or {}).get("url") or n.get("link") or "")
+            published = c.get("pubDate") or n.get("providerPublishTime")
+            arts.append({"title": title, "publisher": publisher, "url": url,
+                         "published": published, "sentiment": score_headline(title)})
+            if len(arts) >= 4: break
+    except Exception as e:
+        print("news error:", e)
+    return arts
+
 def news_for(symbol):
     now = time.time()
     with _lock:
         if symbol in _news_cache and now - _news_cache[symbol][0] < NEWS_TTL:
             return _news_cache[symbol][1]
-    articles = []
-    try:
-        raw = yf.Ticker(symbol).news or []
-        for n in raw[:6]:
-            c = n.get("content") or n   # newer yfinance nests under "content"
-            title = c.get("title") or n.get("title")
-            if not title: continue
-            publisher = (c.get("provider") or {}).get("displayName") or n.get("publisher") or ""
-            url = ((c.get("canonicalUrl") or {}).get("url")
-                   or (c.get("clickThroughUrl") or {}).get("url")
-                   or n.get("link") or "")
-            published = c.get("pubDate") or n.get("providerPublishTime")
-            sentiment = round(vader.polarity_scores(title)["compound"], 2)
-            articles.append({"title": title, "publisher": publisher, "url": url,
-                             "published": published, "sentiment": sentiment})
-            if len(articles) >= 4: break
-    except Exception as e:
-        print("news error:", e)
-    payload = {"symbol": symbol, "articles": articles}
+    arts = finnhub_news(symbol) or yahoo_news(symbol)
+    payload = {"symbol": symbol, "articles": arts}
     with _lock:
         _news_cache[symbol] = (now, payload)
     return payload
+
+# ---------------- FINRA off-exchange short volume (free, no key) ----------------
+FINRA_TTL = 3600
+_finra_cache = {}
+def finra_short_volume():
+    """Latest FINRA daily consolidated short-volume % per symbol. Cached ~1h. {} on failure."""
+    from datetime import timedelta
+    now = time.time()
+    with _lock:
+        if "d" in _finra_cache and now - _finra_cache["d"][0] < FINRA_TTL:
+            return _finra_cache["d"][1]
+    data = {}
+    for back in range(0, 6):                 # walk back to the most recent published trading day
+        d = (datetime.now(timezone.utc).date() - timedelta(days=back)).strftime("%Y%m%d")
+        try:
+            r = requests.get(f"https://cdn.finra.org/equity/regsho/daily/CNMSshvol{d}.txt", timeout=8)
+            if r.status_code != 200: continue
+            for line in r.text.splitlines()[1:]:
+                p = line.split("|")
+                if len(p) < 5: continue
+                try:
+                    sv, tv = float(p[2]), float(p[4])
+                except Exception:
+                    continue
+                if tv > 0:
+                    data[p[1].strip().upper()] = round(sv / tv * 100, 1)
+            if data: break
+        except Exception as e:
+            print("finra error:", e); continue
+    with _lock:
+        _finra_cache["d"] = (now, data)
+    return data
 
 # ---------------- arbitrary/added ticker (full data on demand) ----------------
 def reddit_counts_for(sym, subs):
@@ -313,12 +389,37 @@ def options_flow_for(sym):
         print("options error:", e)
     return out
 
+def finnhub_insiders(sym):
+    """Insider (Form 4) transactions via Finnhub free tier. Used when no FMP key is set."""
+    if not FINNHUB_API_KEY: return []
+    rows = []
+    try:
+        r = requests.get("https://finnhub.io/api/v1/stock/insider-transactions",
+                         params={"symbol": sym, "token": FINNHUB_API_KEY}, timeout=6)
+        if r.status_code != 200: return []
+        for d in (r.json().get("data") or []):
+            code = str(d.get("transactionCode", "")).upper()
+            buy = code in ("P", "A")          # P = purchase, A = grant/acquire
+            shares = d.get("change") or d.get("share") or 0
+            try:
+                amt = f"{abs(int(shares)):,} sh"
+            except Exception:
+                amt = str(shares)
+            rows.append({"who": d.get("name") or "Insider", "role": "Insider",
+                         "type": "BUY" if buy else "SELL", "amount": amt,
+                         "date": str(d.get("transactionDate") or "")[:10]})
+            if len(rows) >= 5: break
+    except Exception as e:
+        print("finnhub insider error:", e)
+    rows.sort(key=lambda x: x.get("date") or "", reverse=True)
+    return rows[:5]
+
 def disclosures_for(sym):
-    """Politician (STOCK Act) + insider (Form 4) recent trades via FMP, only if FMP_API_KEY set.
-    NOTE: FMP has shifted paths across v3/v4/stable — confirm the current endpoints in their docs
-    and adjust below if needed. Returns [] (panel shows 'no recent disclosures') without a key."""
+    """Politician (STOCK Act) + insider (Form 4) recent trades. Prefers FMP (adds congressional);
+    falls back to Finnhub insider data if only a Finnhub key is set. [] if neither key is present.
+    NOTE: FMP has shifted paths across v3/v4/stable — confirm the current endpoints in their docs."""
     if not FMP_API_KEY:
-        return []
+        return finnhub_insiders(sym)
     rows = []
     base = "https://financialmodelingprep.com/api"
     endpoints = [
@@ -368,6 +469,7 @@ def build_one(sym, subs):
                     "market_cap","day_low","day_high","w52_low","w52_high","ma50","ma200")})
         row.update(fundamentals_for(sym))
         row.update(options_flow_for(sym))
+        row["short_vol_pct"] = finra_short_volume().get(sym)
         row["disclosures"] = disclosures_for(sym)
     with _lock:
         _cache[key] = (now, row)
@@ -472,9 +574,13 @@ def home():
 
 @app.route("/health")
 def health():
-    return jsonify({"ok": True, "service": "terrys-ticker-terminal",
-                    "sources": ["reddit","stocktwits","yfinance","fmp(optional)"],
-                    "routes": ["/api/tickers","/api/news","/api/trending","/api/quotes"]})
+    sources = ["yfinance(price/MA/RSI/options)", "finra(short-vol)"]
+    sources.append("reddit" if reddit else "reddit:off")
+    sources.append("stocktwits")
+    sources.append("finnhub(news/insider)" if FINNHUB_API_KEY else "finnhub:off")
+    sources.append("fmp(congress/insider)" if FMP_API_KEY else "fmp:off")
+    return jsonify({"ok": True, "service": "terrys-ticker-terminal", "sources": sources,
+                    "routes": ["/api/tickers","/api/news","/api/quotes"]})
 
 if __name__ == "__main__":
     print("TERRY'S TICKER TERMINAL backend -> http://localhost:8000  (set CONFIG.USE_MOCK=false in the HTML)")
