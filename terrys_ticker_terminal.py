@@ -448,20 +448,15 @@ def disclosures_for(sym):
 def _clampf(x, lo=-1.0, hi=1.0):
     return max(lo, min(hi, x))
 
-def blend_composite(news_sent, pc_ratio, short_vol_pct, reddit_sent, reddit_n, st_sent, st_n):
-    """Consolidated sentiment across every source that has data, weights renormalized.
-    news 35% · options put/call 30% · short volume 15% · reddit 10% · stocktwits 10%."""
+def blend_composite(news_sent, pc_ratio, short_vol_pct):
+    """Consolidated sentiment from live sources: news 45% · options put/call 35% · short volume 20%."""
     sigs = []
     if news_sent is not None:
-        sigs.append((_clampf(news_sent), 0.35))
+        sigs.append((_clampf(news_sent), 0.45))
     if pc_ratio:
-        sigs.append((_clampf((1.0 - pc_ratio) / 0.6), 0.30))
+        sigs.append((_clampf((1.0 - pc_ratio) / 0.6), 0.35))
     if short_vol_pct is not None:
-        sigs.append((_clampf((45.0 - short_vol_pct) / 15.0), 0.15))
-    if reddit_n and reddit_n > 0:
-        sigs.append((_clampf(reddit_sent or 0.0), 0.10))
-    if st_n and st_n > 0:
-        sigs.append((_clampf(st_sent or 0.0), 0.10))
+        sigs.append((_clampf((45.0 - short_vol_pct) / 15.0), 0.20))
     if not sigs:
         return 0.0
     wsum = sum(w for _, w in sigs)
@@ -476,8 +471,8 @@ def build_one(sym, subs):
     q = price_for([sym])
     row = None
     if sym in q:
-        mentions, by_sub, r_sent = reddit_counts_for(sym, subs)
-        stx = stocktwits_for([sym]).get(sym, {"st_messages":0,"st_bull":0,"st_bear":0,"st_sentiment":0.0})
+        mentions, by_sub, r_sent = 0, {}, 0.0          # Reddit removed: API non-functional on cloud
+        stx = {"st_messages": 0, "st_bull": 0, "st_bear": 0, "st_sentiment": 0.0}  # Stocktwits removed: IP-blocked on cloud
         rsi_v = rsi_for([sym]).get(sym)
         with _lock:
             hist = _history.setdefault(sym, []); hist.append(mentions); del hist[:-HISTORY_LEN]; hist = list(hist)
@@ -497,8 +492,7 @@ def build_one(sym, subs):
         narts = news_for(sym).get("articles", [])
         news_sent = round(sum(a.get("sentiment", 0) for a in narts) / len(narts), 2) if narts else None
         row["news_sent"] = news_sent
-        row["composite"] = blend_composite(news_sent, row.get("pc_ratio"), row.get("short_vol_pct"),
-                                            r_sent, mentions, stx["st_sentiment"], stx["st_messages"])
+        row["composite"] = blend_composite(news_sent, row.get("pc_ratio"), row.get("short_vol_pct"))
     with _lock:
         _cache[key] = (now, row)
     return row
@@ -525,7 +519,7 @@ def build_trending(subs):
                         key=lambda s: agg[s]["mentions"], reverse=True)[:40]
     quotes = price_for(candidates)
     real = [s for s in candidates if s in quotes]
-    st = stocktwits_for(real[:ST_LIMIT])
+    st = {}
     rsi = rsi_for(real)
 
     tickers = []
@@ -565,10 +559,9 @@ def trending():
 @app.route("/api/quotes")
 def quotes():
     syms = [s.strip().upper() for s in request.args.get("symbols","").split(",") if s.strip()]
-    q = price_for(syms); st = stocktwits_for(syms); rsi = rsi_for(syms)
+    q = price_for(syms); rsi = rsi_for(syms)
     for s in syms:
         if s in q:
-            q[s].update(st.get(s, {"st_messages":0,"st_sentiment":0.0}))
             q[s]["rsi"] = rsi.get(s)
     return jsonify({"symbols": q})
 
@@ -603,8 +596,6 @@ def home():
 @app.route("/health")
 def health():
     sources = ["yfinance(price/MA/RSI/options)", "finra(short-vol)"]
-    sources.append("reddit" if reddit else "reddit:off")
-    sources.append("stocktwits")
     sources.append("finnhub(news/insider)" if FINNHUB_API_KEY else "finnhub:off")
     sources.append("fmp(congress/insider)" if FMP_API_KEY else "fmp:off")
     return jsonify({"ok": True, "service": "terrys-ticker-terminal", "sources": sources,
